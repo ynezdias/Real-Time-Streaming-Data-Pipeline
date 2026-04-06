@@ -1,5 +1,5 @@
 #!/bin/bash
-docker exec -it kafka kafka-topics \
+docker exec -it kafka-kafka-1 kafka-topics \
   --create --topic user-events \
   --bootstrap-server localhost:9092 \
   --partitions 3 \
