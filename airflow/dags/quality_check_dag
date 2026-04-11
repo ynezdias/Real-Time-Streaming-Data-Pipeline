@@ -1,0 +1,59 @@
+from airflow import DAG
+from airflow.operators.python import PythonOperator
+from airflow.operators.bash import BashOperator
+from datetime import datetime, timedelta
+import psycopg2
+import os
+
+def check_row_count():
+    conn = psycopg2.connect(
+        host=os.getenv("PG_HOST", "localhost"),
+        database=os.getenv("PG_DB", "pipeline"),
+        user=os.getenv("PG_USER", "postgres"),
+        password=os.getenv("PG_PASSWORD")
+    )
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) FROM event_aggregates WHERE created_at > NOW() - INTERVAL '1 day'")
+    count = cur.fetchone()[0]
+    conn.close()
+    if count == 0:
+        raise ValueError("No rows written in last 24h — pipeline may be broken")
+    print(f"Quality check passed: {count} rows found")
+
+def check_no_nulls():
+    conn = psycopg2.connect(
+        host=os.getenv("PG_HOST", "localhost"),
+        database=os.getenv("PG_DB", "pipeline"),
+        user=os.getenv("PG_USER", "postgres"),
+        password=os.getenv("PG_PASSWORD")
+    )
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT COUNT(*) FROM event_aggregates
+        WHERE event_type IS NULL OR window_start IS NULL
+    """)
+    nulls = cur.fetchone()[0]
+    conn.close()
+    if nulls > 0:
+        raise ValueError(f"Found {nulls} rows with null critical fields")
+    print("Null check passed")
+
+with DAG(
+    'data_quality_checks',
+    schedule_interval='@daily',
+    start_date=datetime(2026, 1, 1),
+    catchup=False,
+    default_args={'retries': 1, 'retry_delay': timedelta(minutes=2)}
+) as dag:
+
+    row_count_check = PythonOperator(
+        task_id='check_row_count',
+        python_callable=check_row_count
+    )
+
+    null_check = PythonOperator(
+        task_id='check_no_nulls',
+        python_callable=check_no_nulls
+    )
+
+    row_count_check >> null_check
