@@ -2,6 +2,8 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from schema import event_schema
 from transformations import clean_events, enrich_events
+from storage.postgres_writer import write_aggregates
+from transformations import clean_events, enrich_events, window_aggregations
 
 spark = SparkSession.builder \
     .appName("UserActivityStreaming") \
@@ -27,15 +29,29 @@ parsed_df = raw_df.select(
 # Transform
 clean_df = clean_events(parsed_df)
 enriched_df = enrich_events(clean_df)
+windowed_df = window_aggregations(enriched_df)
 
-# Write to S3 as partitioned Parquet
-query = enriched_df.writeStream \
+# Write raw events to S3
+s3_query = enriched_df.writeStream \
     .format("parquet") \
-    .option("path", "s3a://your-bucket/events/") \
-    .option("checkpointLocation", "s3a://your-bucket/checkpoints/") \
+    .option("path", os.getenv("S3_PATH", "output/events/")) \
+    .option("checkpointLocation", "output/checkpoints/") \
     .partitionBy("event_date", "event_type") \
     .outputMode("append") \
     .trigger(processingTime="30 seconds") \
     .start()
 
-query.awaitTermination()
+# Write aggregates to PostgreSQL
+def write_batch_to_postgres(batch_df, batch_id):
+    rows = batch_df.collect()
+    if rows:
+        write_aggregates(rows)
+        print(f"Batch {batch_id}: wrote {len(rows)} rows to PostgreSQL")
+
+pg_query = windowed_df.writeStream \
+    .foreachBatch(write_batch_to_postgres) \
+    .outputMode("update") \
+    .trigger(processingTime="30 seconds") \
+    .start()
+
+pg_query.awaitTermination()
