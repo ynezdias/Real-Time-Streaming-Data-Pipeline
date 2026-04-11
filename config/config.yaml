@@ -1,0 +1,36 @@
+# config/config.yaml — Central configuration for the Real-Time Streaming Data Pipeline
+
+kafka:
+  bootstrap_servers: "localhost:9092"
+  topic: "user-events"
+  partitions: 3
+  replication_factor: 1
+  producer_batch_size: 10000   # log progress every N events
+  total_events: 500000
+
+spark:
+  app_name: "UserActivityStreaming"
+  checkpoint_location: "s3a://your-bucket/checkpoints/"
+  output_path: "s3a://your-bucket/events/"
+  trigger_interval: "30 seconds"
+  window_duration: "5 minutes"
+  log_level: "WARN"
+
+postgres:
+  host: "${PG_HOST}"
+  port: 5432
+  database: "${PG_DB}"
+  user: "${PG_USER}"
+  password: "${PG_PASSWORD}"
+  table: "event_aggregates"
+
+aws:
+  region: "${AWS_DEFAULT_REGION}"
+  s3_bucket: "${S3_BUCKET}"
+
+dashboard:
+  refresh_rate_seconds: 30
+  default_time_window: "Last 24 Hours"
+  top_countries_default: 10
+  live_feed_rows: 20
+  port: 8501
