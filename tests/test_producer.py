@@ -1,8 +1,11 @@
 import json
 import sys, os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'kafka'))
+from unittest.mock import patch
 
-from producer import generate_event
+with patch('kafka.KafkaProducer'):
+    sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'kafka'))
+    from producer import generate_event
+
 
 def test_event_has_required_fields():
     event = generate_event()
