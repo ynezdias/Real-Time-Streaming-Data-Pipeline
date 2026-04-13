@@ -3,6 +3,9 @@
 ## Overview
 This project simulates a real-time data pipeline similar to platforms like Netflix or Uber. It streams **500K+ synthetic user events** through Kafka, processes them with PySpark Structured Streaming, writes the output to S3 (or local Parquet), serves the aggregated data via PostgreSQL, runs orchestrations via Airflow, and visualizes live metrics in a custom Streamlit dashboard (**StreamPulse**).
 
+<img width="1536" height="1024" alt="Real Time Data Pipeline Flow" src="https://github.com/user-attachments/assets/9bdaa254-bf95-4ea3-9563-503b4ad8a070" />
+
+
 ## Tech Stack
 * **Kafka**: Real-time event ingestion (`kafka/`)
 * **PySpark (Structured Streaming)**: Distributed data processing (`spark/`)
